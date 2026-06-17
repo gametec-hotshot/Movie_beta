@@ -127,7 +127,18 @@ function openPlayer(streamData, title) {
     playerVideo.removeChild(playerVideo.firstChild);
   }
 
-  if (Hls.isSupported()) {
+  if (streamData.type === 'mp4') {
+    // Native MP4 playback
+    playerVideo.src = streamUrl;
+    playerLoading.style.display = 'none';
+    playerVideo.play().catch(() => {});
+    showControls();
+    
+    // Default quality menu for MP4
+    subsMenuItems.innerHTML = '<div class="player-menu-item active" data-track="-1">Off <span class="check">✓</span></div>';
+    qualityMenuItems.innerHTML = `<div class="player-menu-item active">Auto <span class="check">✓</span></div>`;
+    
+  } else if (Hls.isSupported()) {
     playerHls = new Hls({
       maxBufferLength: 30,
       maxMaxBufferLength: 60,
@@ -152,8 +163,12 @@ function openPlayer(streamData, title) {
       if (data.fatal) {
         switch (data.type) {
           case Hls.ErrorTypes.NETWORK_ERROR:
-            console.log('Network error, retrying...');
-            playerHls.startLoad();
+            if (data.details === 'manifestParsingError') {
+              showPlayerError('Broken Source', 'This provider returned an invalid stream. Please click the Settings gear to try another source.');
+            } else {
+              console.log('Network error, retrying...');
+              playerHls.startLoad();
+            }
             break;
           case Hls.ErrorTypes.MEDIA_ERROR:
             console.log('Media error, recovering...');
