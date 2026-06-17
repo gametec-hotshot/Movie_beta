@@ -146,6 +146,13 @@ function openPlayer(streamData, title) {
       capLevelToPlayerSize: true,
       enableWorker: true,
       lowLatencyMode: false,
+      // Robustness for slow proxies:
+      manifestLoadingTimeOut: 20000,
+      manifestLoadingMaxRetry: 5,
+      levelLoadingTimeOut: 20000,
+      levelLoadingMaxRetry: 5,
+      fragLoadingTimeOut: 30000,
+      fragLoadingMaxRetry: 5,
     });
 
     playerHls.loadSource(streamUrl);
