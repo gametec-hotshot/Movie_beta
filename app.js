@@ -176,8 +176,14 @@ function transformCineProResponse(data) {
 
 // Quality ranking for sorting sources
 function qualityRank(quality) {
-  const ranks = { '2160p': 6, '4k': 6, '1080p': 5, '720p': 4, '480p': 3, '360p': 2, 'unknown': 1 };
-  return ranks[quality?.toLowerCase()] || 1;
+  if (!quality) return 1;
+  const q = quality.toLowerCase();
+  if (q.includes('2160') || q.includes('4k')) return 6;
+  if (q.includes('1080')) return 5;
+  if (q.includes('720')) return 4;
+  if (q.includes('480')) return 3;
+  if (q.includes('360')) return 2;
+  return 1;
 }
 
 function getBestSource(sources) {
@@ -584,22 +590,12 @@ async function playMedia(type, id, season = null, episode = null) {
       return;
     }
 
-    // Auto-play the best source
-    const bestSource = getBestSource(result.sources);
-
     // Show the source picker with all available sources
     title.textContent = 'Available Sources';
     body.innerHTML = buildSourceList(result.sources, result.subtitles, mediaTitle);
 
-    // Start playing the best source automatically
-    overlay.classList.remove('active');
-    openPlayer({
-      url: bestSource.url,
-      referer: '',
-      subtitles: result.subtitles,
-      isIframe: false,
-    }, mediaTitle);
-
+    // Keep the overlay active so the user can choose their preferred server
+    // (We removed the auto-play logic per user request so it never gets stuck!)
   } catch (err) {
     console.error('[CinePro] Stream fetch error:', err);
     title.textContent = 'Connection Error';
