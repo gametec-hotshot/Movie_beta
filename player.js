@@ -233,10 +233,8 @@ function closePlayer() {
 playerBackBtn.addEventListener('click', closePlayer);
 playerErrorRetry.addEventListener('click', () => {
   closePlayer();
-  // Retry with CinePro — reopen the source picker
-  if (currentDetailsType && currentDetailsId) {
-    playMedia(currentDetailsType, currentDetailsId);
-  }
+  // Open the source picker directly so they can choose a different one
+  document.getElementById('server-modal-overlay').classList.add('active');
 });
 
 // ============================================================
