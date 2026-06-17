@@ -2055,3 +2055,61 @@ input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   21. PREMIUM LOADER
+   ============================================================ */
+.premium-loader-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 10px;
+}
+.loader-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.loader-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.loader-badge {
+  font-size: 0.8rem;
+  background: rgba(0, 255, 0, 0.1);
+  color: #4ade80;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.loader-badge.error {
+  background: rgba(255, 0, 0, 0.1);
+  color: #f87171;
+}
+.loader-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.loader-progress-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent);
+  transition: width 1.4s linear;
+}
+.loader-status-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.loader-counter {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

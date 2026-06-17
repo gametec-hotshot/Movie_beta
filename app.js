@@ -552,23 +552,38 @@ async function playMedia(type, id, season = null, episode = null) {
   const body = $('server-modal-body');
   const title = $('server-modal-title');
 
-  title.textContent = 'Finding Sources...';
+  title.textContent = '';
   body.innerHTML = `
-    <div class="source-loading">
-      <div class="source-spinner"></div>
-      <p class="source-loading-text" id="source-loading-msg">Initializing scan...</p>
-      <p class="source-loading-sub" id="source-loading-timer">Elapsed time: 0s</p>
-      <p class="source-loading-sub" style="margin-top: 10px; color: var(--text-tertiary);">Depending on your server, a full scan across all 14 providers can take up to 30 seconds.</p>
+    <div class="premium-loader-container">
+      <div class="loader-header">
+        <span class="loader-title">Scanning Providers</span>
+        <span class="loader-badge" id="server-ping-badge"><span class="dot" style="background: currentColor;"></span> Backend: Checking...</span>
+      </div>
+      <div class="loader-progress-bar">
+        <div class="loader-progress-fill" id="provider-progress-fill"></div>
+      </div>
+      <div class="loader-status-row">
+        <span class="loader-status-text" id="provider-status-text">Initializing connection...</span>
+        <span class="loader-counter" id="provider-counter">0 / 14</span>
+      </div>
+      <p style="margin-top: 10px; font-size: 0.8rem; color: var(--text-tertiary);">Please wait while we search for the highest quality streams.</p>
     </div>
   `;
   overlay.classList.add('active');
 
-  let seconds = 0;
+  let providersChecked = 0;
+  const maxProviders = 14;
+  
+  // Fake progress incrementer over ~20s
   const timerInterval = setInterval(() => {
-    seconds++;
-    const timerEl = document.getElementById('source-loading-timer');
-    if (timerEl) timerEl.textContent = `Elapsed time: ${seconds}s`;
-  }, 1000);
+    if (providersChecked < maxProviders) {
+      providersChecked++;
+      const counterEl = document.getElementById('provider-counter');
+      const fillEl = document.getElementById('provider-progress-fill');
+      if (counterEl) counterEl.textContent = `${providersChecked} / ${maxProviders}`;
+      if (fillEl) fillEl.style.width = `${(providersChecked / maxProviders) * 100}%`;
+    }
+  }, 1400);
 
   const messages = [
     'Checking high-speed providers...',
@@ -580,12 +595,44 @@ async function playMedia(type, id, season = null, episode = null) {
   ];
   let msgIndex = 0;
   const msgInterval = setInterval(() => {
-    const msgEl = document.getElementById('source-loading-msg');
+    const msgEl = document.getElementById('provider-status-text');
     if (msgEl) {
       msgEl.textContent = messages[msgIndex % messages.length];
       msgIndex++;
     }
-  }, 4000);
+  }, 3500);
+
+  // Background Health Ping
+  const CINEPRO_API = window.ENV?.PUBLIC_URL || 'http://localhost:3000';
+  let isHealthPingActive = true;
+  let healthFailed = false;
+
+  const checkHealth = async () => {
+    if (!isHealthPingActive) return;
+    try {
+      const res = await fetch(`${CINEPRO_API}/v1`);
+      if (res.ok) {
+        const badge = document.getElementById('server-ping-badge');
+        if (badge) {
+          badge.innerHTML = '<span class="dot" style="background: currentColor;"></span> Backend: Online';
+          badge.classList.remove('error');
+        }
+        setTimeout(checkHealth, 5000); // Check again in 5s
+      } else {
+        throw new Error('Bad status');
+      }
+    } catch (e) {
+      healthFailed = true;
+      const badge = document.getElementById('server-ping-badge');
+      if (badge) {
+        badge.innerHTML = '<span class="dot" style="background: currentColor;"></span> Backend: Disconnected';
+        badge.classList.add('error');
+      }
+      // Note: We don't forcefully throw the main promise, we just let it timeout or fail naturally
+      // But we update the UI to warn the user
+    }
+  };
+  checkHealth();
 
   try {
     // Ensure we have TMDB details for the title
@@ -639,6 +686,7 @@ async function playMedia(type, id, season = null, episode = null) {
       </div>
     `;
   } finally {
+    isHealthPingActive = false;
     clearInterval(timerInterval);
     clearInterval(msgInterval);
   }
