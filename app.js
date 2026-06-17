@@ -556,11 +556,36 @@ async function playMedia(type, id, season = null, episode = null) {
   body.innerHTML = `
     <div class="source-loading">
       <div class="source-spinner"></div>
-      <p class="source-loading-text">Scanning providers for the best streams...</p>
-      <p class="source-loading-sub">This may take a few seconds</p>
+      <p class="source-loading-text" id="source-loading-msg">Initializing scan...</p>
+      <p class="source-loading-sub" id="source-loading-timer">Elapsed time: 0s</p>
+      <p class="source-loading-sub" style="margin-top: 10px; color: var(--text-tertiary);">Depending on your server, a full scan across all 14 providers can take up to 30 seconds.</p>
     </div>
   `;
   overlay.classList.add('active');
+
+  let seconds = 0;
+  const timerInterval = setInterval(() => {
+    seconds++;
+    const timerEl = document.getElementById('source-loading-timer');
+    if (timerEl) timerEl.textContent = \`Elapsed time: \${seconds}s\`;
+  }, 1000);
+
+  const messages = [
+    'Checking high-speed providers...',
+    'Scanning backup servers...',
+    'Bypassing security checks...',
+    'Querying slow providers...',
+    'Consolidating stream links...',
+    'Almost finished...'
+  ];
+  let msgIndex = 0;
+  const msgInterval = setInterval(() => {
+    const msgEl = document.getElementById('source-loading-msg');
+    if (msgEl) {
+      msgEl.textContent = messages[msgIndex % messages.length];
+      msgIndex++;
+    }
+  }, 4000);
 
   try {
     // Ensure we have TMDB details for the title
@@ -613,6 +638,9 @@ async function playMedia(type, id, season = null, episode = null) {
         </div>
       </div>
     `;
+  } finally {
+    clearInterval(timerInterval);
+    clearInterval(msgInterval);
   }
 }
 
