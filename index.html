@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="description" content="Eclipse — Premium ad-free streaming. Browse and watch movies & TV shows with zero interruptions.">
+  <meta name="keywords" content="movies, tv shows, streaming, eclipse, ad-free">
+  <title>Eclipse — Stream Movies & TV Shows</title>
+
+  <!-- Theme & PWA -->
+  <meta name="theme-color" content="#050505">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Eclipse">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e50914'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>E</text></svg>">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ============================
+       NAVIGATION
+       ============================ -->
+  <nav class="nav" id="navbar">
+    <div class="nav-logo" id="nav-logo" onclick="navigateTo('home')">
+      <div class="logo-icon">E</div>
+      <span>Eclipse</span>
+    </div>
+
+    <ul class="nav-links mobile-visible" id="nav-links">
+      <li><a href="#home" class="active" data-view="home" onclick="navigateTo('home')">
+        <span class="nav-icon">🏠</span> Home
+      </a></li>
+      <li><a href="#movies" data-view="movies" onclick="navigateTo('movies')">
+        <span class="nav-icon">🎬</span> Movies
+      </a></li>
+      <li><a href="#tv" data-view="tv" onclick="navigateTo('tv')">
+        <span class="nav-icon">📺</span> TV Shows
+      </a></li>
+    </ul>
+
+    <div class="nav-search" id="nav-search">
+      <input type="text" class="nav-search-input" id="search-input" placeholder="Search movies & shows..." autocomplete="off">
+      <button class="nav-search-btn" id="search-btn" aria-label="Search">🔍</button>
+    </div>
+
+    <button class="nav-mobile-toggle" id="mobile-menu-btn" aria-label="Menu">☰</button>
+  </nav>
+
+  <!-- ============================
+       MAIN CONTENT
+       ============================ -->
+  <main id="main-content">
+
+    <!-- HOME VIEW -->
+    <div id="home-view">
+      <!-- Hero -->
+      <section class="hero" id="hero">
+        <div class="hero-backdrop" id="hero-backdrop"></div>
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="dot"></span>
+            <span id="hero-badge-text">Trending Now</span>
+          </div>
+          <h1 class="hero-title" id="hero-title"></h1>
+          <div class="hero-meta" id="hero-meta"></div>
+          <p class="hero-overview" id="hero-overview"></p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" id="hero-play-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Watch Now
+            </button>
+            <button class="btn btn-glass" id="hero-details-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              Details
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content Rows -->
+      <div id="rows-container"></div>
+    </div>
+
+    <!-- MOVIES VIEW -->
+    <div id="movies-view" class="hidden" style="padding-top: calc(var(--nav-height) + var(--safe-top) + 20px);">
+      <div class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">Movies</h2>
+        </div>
+      </div>
+      <div class="genre-filter-bar" id="movie-genre-filter"></div>
+      <div class="content-section">
+        <div class="content-grid" id="movies-grid"></div>
+      </div>
+      <div id="movies-load-more" style="text-align:center; padding: 20px;">
+        <button class="btn btn-glass btn-sm" id="movies-load-more-btn" style="display:none;">Load More</button>
+      </div>
+    </div>
+
+    <!-- TV VIEW -->
+    <div id="tv-view" class="hidden" style="padding-top: calc(var(--nav-height) + var(--safe-top) + 20px);">
+      <div class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">TV Shows</h2>
+        </div>
+      </div>
+      <div class="genre-filter-bar" id="tv-genre-filter"></div>
+      <div class="content-section">
+        <div class="content-grid" id="tv-grid"></div>
+      </div>
+      <div id="tv-load-more" style="text-align:center; padding: 20px;">
+        <button class="btn btn-glass btn-sm" id="tv-load-more-btn" style="display:none;">Load More</button>
+      </div>
+    </div>
+
+    <!-- SEARCH VIEW -->
+    <div id="search-view" class="hidden" style="padding-top: calc(var(--nav-height) + var(--safe-top) + 20px);">
+      <div class="content-section">
+        <div class="section-header">
+          <h2 class="section-title">Search Results for "<span id="search-query-display"></span>"</h2>
+        </div>
+        <div class="content-grid" id="search-grid"></div>
+        <p id="search-empty" class="hidden" style="text-align:center; color: var(--text-tertiary); padding: 60px 0; font-size: 1rem;">No results found. Try a different search.</p>
+      </div>
+    </div>
+
+    <!-- DETAILS VIEW -->
+    <div id="details-view" class="details-view">
+      <div class="details-backdrop-wrap">
+        <div class="details-backdrop" id="details-backdrop"></div>
+      </div>
+      <div class="details-main" id="details-main">
+        <div class="details-poster" id="details-poster-wrap">
+          <img id="details-poster" src="" alt="">
+        </div>
+        <div class="details-info">
+          <h1 class="details-title" id="details-title"></h1>
+          <div class="details-meta" id="details-meta"></div>
+          <div class="details-genres" id="details-genres"></div>
+          <p class="details-overview" id="details-overview"></p>
+          <div class="details-actions">
+            <button class="btn btn-primary" id="details-play-btn">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              Watch Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cast -->
+      <div class="cast-section" id="cast-section">
+        <div class="section-header">
+          <h3 class="section-title">Cast</h3>
+        </div>
+        <div class="cast-scroll" id="cast-scroll"></div>
+      </div>
+
+      <!-- Seasons & Episodes (TV only) -->
+      <div class="seasons-section hidden" id="seasons-section">
+        <div class="section-header">
+          <h3 class="section-title">Episodes</h3>
+        </div>
+        <div class="season-tabs" id="season-tabs"></div>
+        <div class="episodes-grid" id="episodes-grid"></div>
+      </div>
+
+      <!-- Similar -->
+      <div class="content-section" id="similar-section" style="margin-top: 40px;">
+        <div class="section-header">
+          <h3 class="section-title">More Like This</h3>
+        </div>
+        <div class="content-row" id="similar-row"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================
+       SOURCE PICKER MODAL
+       ============================ -->
+  <div class="modal-overlay" id="server-modal-overlay">
+    <div class="server-modal">
+      <div class="server-modal-header">
+        <h2 class="server-modal-title" id="server-modal-title">Finding Sources...</h2>
+        <button class="server-modal-close" id="server-modal-close">✕</button>
+      </div>
+      <div class="server-modal-body" id="server-modal-body">
+        <!-- Source list injected by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+       VIDEO PLAYER
+       ============================ -->
+  <div class="player-overlay" id="player-overlay">
+    <div class="player-top-bar" id="player-top-bar">
+      <button class="player-back-btn" id="player-back-btn">←</button>
+      <div class="player-title-info">
+        <div class="player-now-playing">NOW PLAYING</div>
+        <div class="player-media-title" id="player-media-title"></div>
+      </div>
+      <div style="width:44px;"></div> <!-- spacer -->
+    </div>
+
+    <div class="player-video-wrap" id="player-video-wrap">
+      <video id="player-video" playsinline></video>
+
+      <!-- Loading -->
+      <div class="player-loading" id="player-loading">
+        <div class="player-spinner"></div>
+        <div class="player-loading-text" id="player-loading-text">Connecting to server...</div>
+      </div>
+
+      <!-- Error -->
+      <div class="player-error" id="player-error">
+        <div class="player-error-icon">⚠️</div>
+        <div class="player-error-text" id="player-error-text">Stream Unavailable</div>
+        <div class="player-error-sub" id="player-error-sub">Try another server</div>
+        <button class="btn btn-glass" id="player-error-retry">Switch Server</button>
+      </div>
+    </div>
+
+    <div class="player-controls" id="player-controls">
+      <!-- Progress -->
+      <div class="player-progress-wrap" id="player-progress-wrap">
+        <div class="player-progress-bar">
+          <div class="player-progress-buffer" id="player-progress-buffer"></div>
+          <div class="player-progress-filled" id="player-progress-filled"></div>
+        </div>
+        <div class="player-progress-thumb" id="player-progress-thumb"></div>
+      </div>
+
+      <!-- Controls Row -->
+      <div class="player-controls-row">
+        <div class="player-controls-left">
+          <button class="player-ctrl-btn play-pause" id="player-play-btn" aria-label="Play/Pause">▶</button>
+          <div class="player-volume-wrap">
+            <button class="player-ctrl-btn" id="player-vol-btn" aria-label="Volume">🔊</button>
+            <input type="range" class="player-volume-slider" id="player-vol-slider" min="0" max="1" step="0.05" value="1">
+          </div>
+          <span class="player-time" id="player-time">0:00 / 0:00</span>
+        </div>
+        <div class="player-controls-center">
+          <button class="player-ctrl-btn" id="player-rw-btn" aria-label="Rewind 10s">⏪</button>
+          <button class="player-ctrl-btn" id="player-ff-btn" aria-label="Forward 10s">⏩</button>
+        </div>
+        <div class="player-controls-right" style="position: relative;">
+          <button class="player-ctrl-btn" id="player-subs-btn" aria-label="Subtitles">CC</button>
+          <button class="player-ctrl-btn" id="player-quality-btn" aria-label="Quality">HD</button>
+          <button class="player-ctrl-btn" id="player-pip-btn" aria-label="Picture in Picture">⧉</button>
+          <button class="player-ctrl-btn" id="player-fs-btn" aria-label="Fullscreen">⛶</button>
+
+          <!-- Quality Menu -->
+          <div class="player-menu" id="quality-menu">
+            <div class="player-menu-title">Quality</div>
+            <div id="quality-menu-items"></div>
+          </div>
+
+          <!-- Subtitles Menu -->
+          <div class="player-menu" id="subs-menu" style="right: 80px;">
+            <div class="player-menu-title">Subtitles</div>
+            <div id="subs-menu-items"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================
+       PWA INSTALL BANNER
+       ============================ -->
+  <div class="pwa-banner" id="pwa-banner">
+    <div class="pwa-banner-icon">E</div>
+    <div class="pwa-banner-text">
+      <strong>Install Eclipse</strong>
+      <span>Add to home screen for a native experience</span>
+    </div>
+    <button class="btn btn-primary btn-sm" id="pwa-install-btn">Install</button>
+    <button class="pwa-banner-dismiss" id="pwa-dismiss-btn">✕</button>
+  </div>
+
+  <!-- ============================
+       FOOTER
+       ============================ -->
+  <footer class="footer" id="main-footer">
+    <p class="footer-text">
+      Eclipse — For educational purposes only. This site does not host any media content.<br>
+      Powered by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a> &
+      <a href="https://docs.cinepro.cc" target="_blank" rel="noopener">CinePro Core</a>
+    </p>
+  </footer>
+
+  <!-- ============================
+       SCRIPTS
+       ============================ -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+  <script src="app.js"></script>
+  <script src="player.js"></script>
+
+</body>
+</html>
