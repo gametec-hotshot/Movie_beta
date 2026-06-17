@@ -567,7 +567,7 @@ async function playMedia(type, id, season = null, episode = null) {
   const timerInterval = setInterval(() => {
     seconds++;
     const timerEl = document.getElementById('source-loading-timer');
-    if (timerEl) timerEl.textContent = \`Elapsed time: \${seconds}s\`;
+    if (timerEl) timerEl.textContent = `Elapsed time: ${seconds}s`;
   }, 1000);
 
   const messages = [
