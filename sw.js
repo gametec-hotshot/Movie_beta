@@ -3,7 +3,7 @@
 // Caches static assets and TMDB images for offline browsing
 // ============================================================
 
-const CACHE_NAME = 'eclipse-v1';
+const CACHE_NAME = 'eclipse-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
