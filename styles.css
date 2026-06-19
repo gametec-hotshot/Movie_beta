@@ -16,14 +16,14 @@
   --bg-tertiary: #111111;
   --bg-elevated: #161616;
 
-  /* Glass Surfaces */
-  --glass-ultra-thin: rgba(255, 255, 255, 0.03);
-  --glass-thin: rgba(255, 255, 255, 0.06);
-  --glass-regular: rgba(255, 255, 255, 0.09);
-  --glass-thick: rgba(255, 255, 255, 0.13);
-  --glass-prominent: rgba(255, 255, 255, 0.18);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  /* Glass Surfaces - iOS Liquid Style */
+  --glass-ultra-thin: rgba(255, 255, 255, 0.02);
+  --glass-thin: rgba(255, 255, 255, 0.04);
+  --glass-regular: rgba(255, 255, 255, 0.07);
+  --glass-thick: rgba(255, 255, 255, 0.12);
+  --glass-prominent: rgba(255, 255, 255, 0.16);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-hover: rgba(255, 255, 255, 0.12);
 
   /* Accent */
   --accent: #e50914;
@@ -33,15 +33,15 @@
 
   /* Text */
   --text-primary: #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.7);
-  --text-tertiary: rgba(255, 255, 255, 0.45);
-  --text-quaternary: rgba(255, 255, 255, 0.25);
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-quaternary: rgba(255, 255, 255, 0.3);
 
-  /* Blur Levels */
-  --blur-sm: 12px;
-  --blur-md: 24px;
-  --blur-lg: 40px;
-  --blur-xl: 60px;
+  /* Blur Levels - Intense Frosting */
+  --blur-sm: 16px;
+  --blur-md: 32px;
+  --blur-lg: 48px;
+  --blur-xl: 72px;
 
   /* Radii */
   --radius-xs: 8px;
@@ -201,13 +201,22 @@ input {
 }
 
 .nav-links {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: calc(var(--nav-height) + var(--safe-top));
+  padding-top: var(--safe-top);
   display: flex;
   align-items: center;
   gap: 8px;
   list-style: none;
+  z-index: 1001;
 }
 
 .nav-links li a {
+  display: flex;
+  align-items: center;
   padding: 8px 18px;
   border-radius: var(--radius-pill);
   font-size: 0.9rem;
@@ -1000,7 +1009,7 @@ input {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  z-index: 2000;
+  z-index: 2147483647;
   display: none;
   align-items: center;
   justify-content: center;
@@ -1055,7 +1064,8 @@ input {
   font-weight: 700;
 }
 
-.server-modal-close {
+.server-modal-close,
+.server-modal-reload {
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -1066,11 +1076,23 @@ input {
   color: var(--text-secondary);
   font-size: 1.2rem;
   transition: all var(--duration-fast);
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.server-modal-close:hover {
+.server-modal-close:hover,
+.server-modal-reload:hover {
   background: var(--glass-regular);
   color: var(--text-primary);
+}
+
+.server-modal-reload.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
 }
 
 .server-modal-body {
@@ -1756,39 +1778,45 @@ input {
 /* PWA Install Banner */
 .pwa-banner {
   position: fixed;
-  bottom: calc(20px + var(--safe-bottom));
+  bottom: -150px; /* Hidden state */
   left: 50%;
-  transform: translateX(-50%) translateY(120%);
+  transform: translateX(-50%); /* Centered horizontally */
   width: calc(100% - 32px);
-  max-width: 420px;
-  padding: 16px 20px;
-  border-radius: var(--radius-lg);
-  background: var(--glass-regular);
-  backdrop-filter: blur(var(--blur-lg));
-  -webkit-backdrop-filter: blur(var(--blur-lg));
+  max-width: 380px;
+  padding: 12px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-prominent);
+  backdrop-filter: blur(var(--blur-xl)) saturate(2);
+  -webkit-backdrop-filter: blur(var(--blur-xl)) saturate(2);
   border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   z-index: 1500;
   display: flex;
   align-items: center;
-  gap: 14px;
-  transition: transform var(--duration-slow) var(--ease-spring);
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: bottom var(--duration-slow) var(--ease-spring),
+              opacity var(--duration-slow) var(--ease-spring);
 }
 
 .pwa-banner.show {
-  transform: translateX(-50%) translateY(0);
+  bottom: calc(30px + var(--safe-bottom));
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .pwa-banner-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), #ff4757);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
   flex-shrink: 0;
+  box-shadow: var(--shadow-glow);
 }
 
 .pwa-banner-text {
@@ -1809,22 +1837,30 @@ input {
 
 .pwa-banner .btn-sm {
   flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  padding: 8px 16px;
 }
 
 .pwa-banner-dismiss {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: 0px;
+  right: 0px;
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
   color: var(--text-tertiary);
+  cursor: pointer;
+  transform: translate(30%, -30%);
 }
 
 /* ============================================================
@@ -1852,42 +1888,66 @@ input {
     --nav-height: 60px;
   }
 
-  /* Nav */
-  .nav-links {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--glass-regular);
-    backdrop-filter: blur(var(--blur-lg)) saturate(1.8);
-    -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(1.8);
-    border-top: 1px solid var(--glass-border);
-    padding: 8px 0 calc(8px + var(--safe-bottom));
-    flex-direction: row;
-    justify-content: space-around;
-    z-index: 1001;
+  /* Prevent PWA banner from overlapping the bottom nav pill */
+  .pwa-banner {
+    bottom: calc(90px + var(--safe-bottom));
   }
 
-  .nav-links.mobile-visible {
-    display: flex;
+  /* Nav - Bottom Floating Pill */
+  .nav {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .nav-links {
+    display: flex !important; /* Always show the bottom pill */
+    position: fixed;
+    top: auto;
+    height: auto;
+    bottom: calc(20px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--glass-prominent);
+    backdrop-filter: blur(var(--blur-xl)) saturate(2);
+    -webkit-backdrop-filter: blur(var(--blur-xl)) saturate(2);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-pill);
+    padding: 8px 16px;
+    flex-direction: row;
+    gap: 16px;
+    z-index: 1001;
+    box-shadow: var(--shadow-xl);
+    width: auto;
+    animation: none;
   }
 
   .nav-links li a {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
-    font-size: 0.7rem;
-    padding: 8px 12px;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    background: transparent;
+    transition: all var(--duration-fast) var(--ease-spring);
+  }
+
+  .nav-links li a.active {
+    background: rgba(255, 255, 255, 0.15);
   }
 
   .nav-links li a .nav-icon {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
+    margin-right: 0;
+  }
+
+  .nav-links li a .nav-text {
+    display: none; /* Hide text on mobile */
   }
 
   .nav-mobile-toggle {
-    display: flex;
+    display: none !important; /* Hide hamburger completely */
   }
 
   .nav-search.expanded .nav-search-input {
@@ -2112,4 +2172,276 @@ input {
 .loader-counter {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/* ============================================================
+   17. VIDEO.JS CUSTOM COMPONENTS
+   ============================================================ */
+
+
+/* Episodes Corner Popup */
+.episodes-popup {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
+  width: 300px;
+  max-height: 400px;
+  background: var(--glass-regular);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 50;
+  animation: slideUp var(--duration-fast) var(--ease-spring);
+}
+
+.episodes-popup.hidden {
+  display: none !important;
+}
+
+.episodes-popup-header {
+  padding: 15px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.episodes-popup-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.episodes-popup-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  gap: 15px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background var(--duration-fast);
+}
+
+.episodes-popup-item:hover {
+  background: var(--glass-thin);
+}
+
+.episodes-popup-item.active {
+  background: var(--accent-subtle);
+  border-left: 3px solid var(--accent);
+}
+
+.ep-num {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  width: 30px;
+  text-align: center;
+}
+
+.ep-info {
+  flex: 1;
+}
+
+.ep-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* --- Video.js Floating Pill Theme (Fantasy Style) --- */
+.video-js .vjs-control-bar {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  position: absolute !important;
+  bottom: 30px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 95% !important;
+  max-width: 900px !important;
+  height: 54px !important;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 27px !important;
+  padding: 0 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+  transition: opacity 0.3s ease;
+}
+
+.video-js.vjs-user-inactive.vjs-playing .vjs-control-bar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Fix vertical alignment of standard video.js icon fonts */
+.video-js .vjs-control::before,
+.video-js .vjs-icon-placeholder::before {
+  line-height: 54px !important;
+}
+
+/* Hide default backgrounds/borders */
+.video-js .vjs-control {
+  height: 100% !important;
+  display: flex;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Make Progress Bar expand and look sleek */
+.video-js .vjs-progress-control {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0;
+}
+.video-js .vjs-progress-control .vjs-progress-holder {
+  height: 6px !important;
+  border-radius: 3px !important;
+  margin: 0 10px !important;
+  width: 100% !important;
+}
+
+/* Time text vertically centered */
+.video-js .vjs-current-time,
+.video-js .vjs-duration {
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 8px !important;
+  font-weight: 500;
+}
+
+/* Ensure Settings & Cloud Button are aligned */
+.vjs-settings-btn,
+.vjs-server-switch-btn,
+.vjs-episodes-list-btn,
+.vjs-next-episode-btn {
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Settings popup positioning adjustment for Pill */
+.episodes-popup {
+  bottom: 95px !important;
+}
+
+/* Professional Nav SVG Alignment */
+.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+.nav-icon svg {
+  vertical-align: middle;
+}
+.nav-search-btn svg, .nav-mobile-toggle svg {
+  vertical-align: middle;
+}
+.logo-circle {
+  height: 44px;
+  width: 44px;
+  border-radius: 50%;
+  background-image: url('logo.png');
+  background-position: center;
+  background-size: 150%; /* Zooms in to remove empty borders */
+  box-shadow: 0 0 15px rgba(255, 71, 87, 0.4);
+}
+
+/* Force Video.js text track (subtitle) display to be visible */
+.video-js .vjs-text-track-display {
+  pointer-events: none !important;
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  z-index: 5 !important;
+  --sub-size: 1.1em;
+  --sub-color: #ffffff;
+  --sub-bg: rgba(0,0,0,0.75);
+}
+
+/* Only style innermost cue text */
+.video-js .vjs-text-track-display > div > div > div {
+  font-size: var(--sub-size) !important;
+  color: var(--sub-color) !important;
+  background: var(--sub-bg) !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+}
+
+/* Custom Subs Button alignment */
+.vjs-custom-subs-btn {
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* --- Settings Panel Premium Styles --- */
+.settings-section-label {
+  padding: 8px 15px;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.4);
+}
+
+.settings-size-row,
+.settings-color-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 15px;
+  flex-wrap: wrap;
+}
+
+.settings-pill {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.settings-pill:hover {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+}
+.settings-pill.active {
+  background: rgba(255, 71, 87, 0.25);
+  color: #ff4757;
+  border-color: rgba(255, 71, 87, 0.5);
+}
+
+.settings-color-swatch,
+.settings-bg-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+.settings-color-swatch:hover,
+.settings-bg-swatch:hover {
+  transform: scale(1.15);
+}
+.settings-color-swatch.active,
+.settings-bg-swatch.active {
+  border-color: #ff4757;
+  box-shadow: 0 0 8px rgba(255, 71, 87, 0.5);
 }

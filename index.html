@@ -14,6 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="Eclipse">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e50914'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>E</text></svg>">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23e50914'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='bold'>E</text></svg>">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,6 +23,10 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css">
+  
+  <!-- Video.js Styles -->
+  <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/videojs-hls-quality-selector@1.1.4/dist/videojs-hls-quality-selector.css" rel="stylesheet">
 </head>
 <body>
 
@@ -30,29 +35,33 @@
        ============================ -->
   <nav class="nav" id="navbar">
     <div class="nav-logo" id="nav-logo" onclick="navigateTo('home')">
-      <div class="logo-icon">E</div>
-      <span>Eclipse</span>
+      <div class="logo-circle"></div>
+      <span style="font-weight: 800; tracking: 1px;">Eclipse</span>
     </div>
-
-    <ul class="nav-links mobile-visible" id="nav-links">
-      <li><a href="#home" class="active" data-view="home" onclick="navigateTo('home')">
-        <span class="nav-icon">🏠</span> Home
-      </a></li>
-      <li><a href="#movies" data-view="movies" onclick="navigateTo('movies')">
-        <span class="nav-icon">🎬</span> Movies
-      </a></li>
-      <li><a href="#tv" data-view="tv" onclick="navigateTo('tv')">
-        <span class="nav-icon">📺</span> TV Shows
-      </a></li>
-    </ul>
 
     <div class="nav-search" id="nav-search">
       <input type="text" class="nav-search-input" id="search-input" placeholder="Search movies & shows..." autocomplete="off">
-      <button class="nav-search-btn" id="search-btn" aria-label="Search">🔍</button>
+      <button class="nav-search-btn" id="search-btn" aria-label="Search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      </button>
     </div>
 
-    <button class="nav-mobile-toggle" id="mobile-menu-btn" aria-label="Menu">☰</button>
+    <button class="nav-mobile-toggle" id="mobile-menu-btn" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
   </nav>
+
+  <ul class="nav-links mobile-visible" id="nav-links">
+    <li><a href="#home" class="active" data-view="home" onclick="navigateTo('home')">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span> <span class="nav-text">Home</span>
+    </a></li>
+    <li><a href="#movies" data-view="movies" onclick="navigateTo('movies')">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg></span> <span class="nav-text">Movies</span>
+    </a></li>
+    <li><a href="#tv" data-view="tv" onclick="navigateTo('tv')">
+      <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg></span> <span class="nav-text">TV Shows</span>
+    </a></li>
+  </ul>
 
   <!-- ============================
        MAIN CONTENT
@@ -190,7 +199,12 @@
     <div class="server-modal">
       <div class="server-modal-header">
         <h2 class="server-modal-title" id="server-modal-title">Finding Sources...</h2>
-        <button class="server-modal-close" id="server-modal-close">✕</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="server-modal-reload" id="server-modal-reload" aria-label="Reload Sources" title="Reload Sources">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </button>
+          <button class="server-modal-close" id="server-modal-close">✕</button>
+        </div>
       </div>
       <div class="server-modal-body" id="server-modal-body">
         <!-- Source list injected by JS -->
@@ -212,64 +226,23 @@
     </div>
 
     <div class="player-video-wrap" id="player-video-wrap">
-      <video id="player-video" playsinline></video>
+      <video id="eclipse-videojs" class="video-js vjs-default-skin vjs-big-play-centered" crossorigin="anonymous" controls preload="auto" playsinline style="width: 100%; height: 100%;"></video>
 
-      <!-- Loading -->
-      <div class="player-loading" id="player-loading">
-        <div class="player-spinner"></div>
-        <div class="player-loading-text" id="player-loading-text">Connecting to server...</div>
-      </div>
-
-      <!-- Error -->
-      <div class="player-error" id="player-error">
-        <div class="player-error-icon">⚠️</div>
-        <div class="player-error-text" id="player-error-text">Stream Unavailable</div>
-        <div class="player-error-sub" id="player-error-sub">Try another server</div>
-        <button class="btn btn-glass" id="player-error-retry">Switch Server</button>
-      </div>
-    </div>
-
-    <div class="player-controls" id="player-controls">
-      <!-- Progress -->
-      <div class="player-progress-wrap" id="player-progress-wrap">
-        <div class="player-progress-bar">
-          <div class="player-progress-buffer" id="player-progress-buffer"></div>
-          <div class="player-progress-filled" id="player-progress-filled"></div>
+      <!-- Custom UI Layer over player -->
+      <div id="player-custom-ui-layer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 10;">
+        
+        <!-- Error -->
+        <div class="player-error" id="player-error" style="pointer-events: auto;">
+          <div class="player-error-icon">⚠️</div>
+          <div class="player-error-text" id="player-error-text">Stream Unavailable</div>
+          <div class="player-error-sub" id="player-error-sub">Try another server</div>
+          <button class="btn btn-glass" id="player-error-retry">Switch Server</button>
         </div>
-        <div class="player-progress-thumb" id="player-progress-thumb"></div>
-      </div>
 
-      <!-- Controls Row -->
-      <div class="player-controls-row">
-        <div class="player-controls-left">
-          <button class="player-ctrl-btn play-pause" id="player-play-btn" aria-label="Play/Pause">▶</button>
-          <div class="player-volume-wrap">
-            <button class="player-ctrl-btn" id="player-vol-btn" aria-label="Volume">🔊</button>
-            <input type="range" class="player-volume-slider" id="player-vol-slider" min="0" max="1" step="0.05" value="1">
-          </div>
-          <span class="player-time" id="player-time">0:00 / 0:00</span>
-        </div>
-        <div class="player-controls-center">
-          <button class="player-ctrl-btn" id="player-rw-btn" aria-label="Rewind 10s">⏪</button>
-          <button class="player-ctrl-btn" id="player-ff-btn" aria-label="Forward 10s">⏩</button>
-        </div>
-        <div class="player-controls-right" style="position: relative;">
-          <button class="player-ctrl-btn" id="player-subs-btn" aria-label="Subtitles">CC</button>
-          <button class="player-ctrl-btn" id="player-quality-btn" aria-label="Quality">HD</button>
-          <button class="player-ctrl-btn" id="player-pip-btn" aria-label="Picture in Picture">⧉</button>
-          <button class="player-ctrl-btn" id="player-fs-btn" aria-label="Fullscreen">⛶</button>
-
-          <!-- Quality Menu -->
-          <div class="player-menu" id="quality-menu">
-            <div class="player-menu-title">Quality</div>
-            <div id="quality-menu-items"></div>
-          </div>
-
-          <!-- Subtitles Menu -->
-          <div class="player-menu" id="subs-menu" style="right: 80px;">
-            <div class="player-menu-title">Subtitles</div>
-            <div id="subs-menu-items"></div>
-          </div>
+        <!-- TV Episodes Corner Popup -->
+        <div id="episodes-popup" class="episodes-popup hidden" style="pointer-events: auto;">
+          <div class="episodes-popup-header">Episodes</div>
+          <div id="episodes-popup-list" class="episodes-popup-list"></div>
         </div>
       </div>
     </div>
@@ -302,7 +275,13 @@
   <!-- ============================
        SCRIPTS
        ============================ -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+  <!-- Video.js Core -->
+  <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+  
+  <!-- Video.js Plugins for Quality Selection -->
+  <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-quality-levels@4.0.0/dist/videojs-contrib-quality-levels.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/videojs-hls-quality-selector@1.1.4/dist/videojs-hls-quality-selector.min.js"></script>
+
   <script src="app.js?v=1.6"></script>
   <script src="player.js?v=1.6"></script>
 

@@ -159,7 +159,7 @@ function transformCineProResponse(data) {
   }));
 
   const subtitles = (data.subtitles || []).map(sub => ({
-    url: sub.url.startsWith('/') ? `${CINEPRO_API}${sub.url}` : sub.url,
+    url: sub.url.startsWith('http') ? sub.url : `${CINEPRO_API}${sub.url.startsWith('/') ? '' : '/'}${sub.url}`,
     label: sub.label || 'Unknown',
     lang: sub.label || 'en',
     format: sub.format || 'vtt',
@@ -552,6 +552,14 @@ async function playMedia(type, id, season = null, episode = null) {
   const body = $('server-modal-body');
   const title = $('server-modal-title');
 
+  // Store for reload button
+  overlay.dataset.type = type;
+  overlay.dataset.id = id;
+  if (season !== null) overlay.dataset.season = season;
+  else delete overlay.dataset.season;
+  if (episode !== null) overlay.dataset.episode = episode;
+  else delete overlay.dataset.episode;
+
   title.textContent = '';
   body.innerHTML = `
     <div class="premium-loader-container">
@@ -603,7 +611,6 @@ async function playMedia(type, id, season = null, episode = null) {
   }, 3500);
 
   // Background Health Ping
-  const CINEPRO_API = window.ENV?.PUBLIC_URL || 'http://localhost:3000';
   let isHealthPingActive = true;
   let healthFailed = false;
 
@@ -664,7 +671,7 @@ async function playMedia(type, id, season = null, episode = null) {
 
     // Show the source picker with all available sources
     title.textContent = 'Available Sources';
-    body.innerHTML = buildSourceList(result.sources, result.subtitles, mediaTitle);
+    body.innerHTML = buildSourceList(result.sources, result.subtitles, mediaTitle, type, id, season, episode);
 
     // Keep the overlay active so the user can choose their preferred server
     // (We removed the auto-play logic per user request so it never gets stuck!)
@@ -692,7 +699,7 @@ async function playMedia(type, id, season = null, episode = null) {
   }
 }
 
-function buildSourceList(sources, subtitles, mediaTitle) {
+function buildSourceList(sources, subtitles, mediaTitle, type, id, season, episode) {
   // Group sources by provider
   const byProvider = {};
   sources.forEach(src => {
@@ -715,7 +722,7 @@ function buildSourceList(sources, subtitles, mediaTitle) {
         : '';
 
       html += `
-        <button class="source-btn" onclick="playSource(${JSON.stringify(src).replace(/"/g, '&quot;')}, '${subtitles ? btoa(JSON.stringify(subtitles)) : ''}', '${mediaTitle.replace(/'/g, "\\'")}')">
+        <button class="source-btn" onclick="playSource(${JSON.stringify(src).replace(/"/g, '&quot;')}, '${subtitles ? btoa(unescape(encodeURIComponent(JSON.stringify(subtitles)))) : ''}', '${mediaTitle.replace(/'/g, "\\'")}', '${type}', ${id || null}, ${season || null}, ${episode || null})">
           <div class="source-quality ${qualityClass}">${src.quality || '?'}</div>
           <div class="source-type">${typeLabel}</div>
           ${audioLabel ? `<div class="source-audio">${audioLabel}</div>` : ''}
@@ -739,11 +746,11 @@ function getQualityClass(quality) {
 }
 
 // Called when user manually picks a source from the modal
-window.playSource = function (source, subtitlesB64, mediaTitle) {
+window.playSource = function (source, subtitlesB64, mediaTitle, type, id, season, episode) {
   let subtitles = [];
   try {
-    if (subtitlesB64) subtitles = JSON.parse(atob(subtitlesB64));
-  } catch (e) { /* ignore */ }
+    if (subtitlesB64) subtitles = JSON.parse(decodeURIComponent(escape(atob(subtitlesB64))));
+  } catch (e) { console.error('Failed to parse subtitles', e); }
 
   $('server-modal-overlay').classList.remove('active');
   openPlayer({
@@ -751,20 +758,24 @@ window.playSource = function (source, subtitlesB64, mediaTitle) {
     referer: '',
     subtitles: subtitles,
     isIframe: false,
+    type: type,
+    tmdbId: id,
+    season: season,
+    episode: episode
   }, mediaTitle);
 };
 
 // Allow switching sources while player is open
-window.openSourcePicker = function () {
+window.openSourcePicker = function (type, id, season, episode) {
   if (!lastFetchedSources || !lastFetchedSources.sources) return;
 
   const overlay = $('server-modal-overlay');
   const body = $('server-modal-body');
   const title = $('server-modal-title');
 
-  const mediaTitle = playerMediaTitle?.textContent || '';
+  const mediaTitle = document.getElementById('player-media-title')?.textContent || '';
   title.textContent = 'Switch Source';
-  body.innerHTML = buildSourceList(lastFetchedSources.sources, lastFetchedSources.subtitles, mediaTitle);
+  body.innerHTML = buildSourceList(lastFetchedSources.sources, lastFetchedSources.subtitles, mediaTitle, type, id, season, episode);
   overlay.classList.add('active');
 };
 
@@ -870,27 +881,52 @@ searchInput.addEventListener('blur', () => {
 // ============================================================
 let deferredPrompt = null;
 
+function showPwaBanner() {
+  if (!localStorage.getItem('eclipse_pwa_dismissed')) {
+    setTimeout(() => {
+      $('pwa-banner').classList.add('show');
+    }, 2000);
+  }
+}
+
+// 1. Android / Desktop Chrome Native Install
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-
-  // Show banner after a delay
-  setTimeout(() => {
-    if (!localStorage.getItem('eclipse_pwa_dismissed')) {
-      $('pwa-banner').classList.add('show');
-    }
-  }, 5000);
+  showPwaBanner();
 });
+
+// 2. iOS Safari Manual Install Detection
+const isIos = /ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase()) && !window.MSStream;
+const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+
+if (isIos && !isStandalone) {
+  // iOS does not fire beforeinstallprompt. Manually show instructions.
+  const btn = $('pwa-install-btn');
+  if (btn) btn.style.display = 'none'; // Hide native install button since it won't work on iOS
+  
+  const textContainer = document.querySelector('.pwa-banner-text span');
+  if (textContainer) {
+    textContainer.textContent = "Tap Share \u2191 then 'Add to Home Screen'"; // iOS share arrow usually points up
+  }
+  showPwaBanner();
+}
 
 $('pwa-install-btn').addEventListener('click', async () => {
   if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    if (result.outcome === 'accepted') {
-      $('pwa-banner').classList.remove('show');
+    try {
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      if (result.outcome === 'accepted') {
+        console.log('[PWA] Installed successfully');
+      }
+    } catch (e) {
+      console.warn('[PWA] Install prompt failed', e);
     }
     deferredPrompt = null;
   }
+  // Always hide the banner
+  $('pwa-banner').classList.remove('show');
 });
 
 $('pwa-dismiss-btn').addEventListener('click', () => {
@@ -913,6 +949,23 @@ window.setCineProUrl = function (url) {
 // ============================================================
 $('server-modal-close').addEventListener('click', () => {
   $('server-modal-overlay').classList.remove('active');
+});
+
+$('server-modal-reload').addEventListener('click', () => {
+  const overlay = $('server-modal-overlay');
+  const type = overlay.dataset.type;
+  const id = overlay.dataset.id;
+  if (!type || !id) return;
+
+  const season = overlay.dataset.season ? parseInt(overlay.dataset.season, 10) : null;
+  const episode = overlay.dataset.episode ? parseInt(overlay.dataset.episode, 10) : null;
+
+  const btn = $('server-modal-reload');
+  btn.classList.add('spinning');
+  
+  playMedia(type, id, season, episode).finally(() => {
+    btn.classList.remove('spinning');
+  });
 });
 
 $('server-modal-overlay').addEventListener('click', e => {

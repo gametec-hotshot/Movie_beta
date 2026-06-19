@@ -1,83 +1,421 @@
 /* ============================================================
-   ECLIPSE — Custom Video Player
-   Premium HLS player with glassmorphic controls
+   ECLIPSE — Video.js Player Implementation
+   Premium Video.js player with HLS Quality, Subtitles, and TV Series Addons
    ============================================================ */
 
 // ============================================================
-// 1. PLAYER STATE
+// 1. PLAYER STATE & DOM
 // ============================================================
-let playerHls = null;
-let controlsTimeout = null;
-let isSeeking = false;
-let currentQualityLevel = -1; // -1 = auto
-let currentSubTrack = -1; // -1 = off
+let vjsPlayer = null;
 let currentStreamData = null;
 
-// ============================================================
-// 2. DOM REFERENCES
-// ============================================================
 const playerOverlay = document.getElementById('player-overlay');
-const playerVideo = document.getElementById('player-video');
-const playerTopBar = document.getElementById('player-top-bar');
-const playerControls = document.getElementById('player-controls');
-const playerPlayBtn = document.getElementById('player-play-btn');
-const playerProgressWrap = document.getElementById('player-progress-wrap');
-const playerProgressFilled = document.getElementById('player-progress-filled');
-const playerProgressBuffer = document.getElementById('player-progress-buffer');
-const playerProgressThumb = document.getElementById('player-progress-thumb');
-const playerTime = document.getElementById('player-time');
-const playerVolBtn = document.getElementById('player-vol-btn');
-const playerVolSlider = document.getElementById('player-vol-slider');
-const playerFsBtn = document.getElementById('player-fs-btn');
-const playerPipBtn = document.getElementById('player-pip-btn');
-const playerQualityBtn = document.getElementById('player-quality-btn');
-const playerSubsBtn = document.getElementById('player-subs-btn');
-const playerRwBtn = document.getElementById('player-rw-btn');
-const playerFfBtn = document.getElementById('player-ff-btn');
+const playerMediaTitle = document.getElementById('player-media-title');
 const playerBackBtn = document.getElementById('player-back-btn');
-const playerLoading = document.getElementById('player-loading');
-const playerLoadingText = document.getElementById('player-loading-text');
 const playerError = document.getElementById('player-error');
 const playerErrorRetry = document.getElementById('player-error-retry');
-const qualityMenu = document.getElementById('quality-menu');
-const qualityMenuItems = document.getElementById('quality-menu-items');
-const subsMenu = document.getElementById('subs-menu');
-const subsMenuItems = document.getElementById('subs-menu-items');
-const playerMediaTitle = document.getElementById('player-media-title');
+const episodesPopup = document.getElementById('episodes-popup');
+const episodesPopupList = document.getElementById('episodes-popup-list');
 
 // ============================================================
-// 3. OPEN PLAYER
+// 2. VIDEO.JS CUSTOM BUTTON SETUP
 // ============================================================
-function openPlayer(streamData, title) {
+// Register custom buttons once
+function registerVideoJsPlugins() {
+  if (videojs.getComponent('ServerSwitchButton')) return; // Already registered
+
+  // Inject Settings Popup DOM
+  if (!document.getElementById('settings-popup')) {
+    const settingsPopupHTML = `
+      <div id="settings-popup" class="episodes-popup hidden" style="width: 260px; z-index: 2147483647; right: 60px;">
+        <div class="episodes-popup-header">Settings</div>
+        <div class="episodes-popup-list">
+          <div class="settings-section-label">Quality</div>
+          <div class="episodes-popup-item" onclick="window.openServerPickerFromSettings()">Change Server / Quality...</div>
+
+          <div class="settings-section-label">Subtitle Size</div>
+          <div class="settings-size-row" id="sub-size-row">
+            <button class="settings-pill" onclick="window.setSubSize('small')">S</button>
+            <button class="settings-pill active" onclick="window.setSubSize('medium')">M</button>
+            <button class="settings-pill" onclick="window.setSubSize('large')">L</button>
+            <button class="settings-pill" onclick="window.setSubSize('xlarge')">XL</button>
+          </div>
+
+          <div class="settings-section-label">Subtitle Color</div>
+          <div class="settings-color-row" id="sub-color-row">
+            <button class="settings-color-swatch active" data-color="#ffffff" onclick="window.setSubColor('#ffffff')" style="background:#ffffff;" title="White"></button>
+            <button class="settings-color-swatch" data-color="#ffff00" onclick="window.setSubColor('#ffff00')" style="background:#ffff00;" title="Yellow"></button>
+            <button class="settings-color-swatch" data-color="#00ff00" onclick="window.setSubColor('#00ff00')" style="background:#00ff00;" title="Green"></button>
+            <button class="settings-color-swatch" data-color="#00ffff" onclick="window.setSubColor('#00ffff')" style="background:#00ffff;" title="Cyan"></button>
+            <button class="settings-color-swatch" data-color="#ff69b4" onclick="window.setSubColor('#ff69b4')" style="background:#ff69b4;" title="Pink"></button>
+            <button class="settings-color-swatch" data-color="#ffa500" onclick="window.setSubColor('#ffa500')" style="background:#ffa500;" title="Orange"></button>
+          </div>
+
+          <div class="settings-section-label">Subtitle Background</div>
+          <div class="settings-color-row" id="sub-bg-row">
+            <button class="settings-bg-swatch active" data-bg="dark" onclick="window.setSubBg('dark')" style="background:rgba(0,0,0,0.75);" title="Dark"></button>
+            <button class="settings-bg-swatch" data-bg="semi" onclick="window.setSubBg('semi')" style="background:rgba(0,0,0,0.4);" title="Semi"></button>
+            <button class="settings-bg-swatch" data-bg="none" onclick="window.setSubBg('none')" style="background:transparent; border: 1px dashed rgba(255,255,255,0.4);" title="None"></button>
+          </div>
+
+          <div class="settings-section-label">Playback Speed</div>
+          <div class="episodes-popup-item" onclick="window.setPlaybackSpeed(0.5)">0.5x</div>
+          <div class="episodes-popup-item" onclick="window.setPlaybackSpeed(1)">1x (Normal)</div>
+          <div class="episodes-popup-item" onclick="window.setPlaybackSpeed(1.25)">1.25x</div>
+          <div class="episodes-popup-item" onclick="window.setPlaybackSpeed(1.5)">1.5x</div>
+          <div class="episodes-popup-item" onclick="window.setPlaybackSpeed(2)">2x</div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', settingsPopupHTML);
+  }
+
+  // Inject Subtitles Popup DOM
+  if (!document.getElementById('subs-popup')) {
+    const subsPopupHTML = `
+      <div id="subs-popup" class="episodes-popup hidden" style="width: 220px; z-index: 2147483647; right: 100px;">
+        <div class="episodes-popup-header">Subtitles</div>
+        <div class="episodes-popup-list" id="subs-popup-container">
+          <div class="episodes-popup-item" onclick="window.setSubtitle(-1)">Off</div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', subsPopupHTML);
+  }
+
+  // --- Subtitle Preferences (persisted in localStorage) ---
+  const subSizeMap = { small: '0.85em', medium: '1.1em', large: '1.5em', xlarge: '2em' };
+  let currentSubSize = localStorage.getItem('eclipse_sub_size') || 'medium';
+  let currentSubColor = localStorage.getItem('eclipse_sub_color') || '#ffffff';
+  let currentSubBg = localStorage.getItem('eclipse_sub_bg') || 'dark';
+  const subBgMap = { dark: 'rgba(0,0,0,0.75)', semi: 'rgba(0,0,0,0.4)', none: 'transparent' };
+
+  function applySubtitleStyle() {
+    const el = document.querySelector('.video-js .vjs-text-track-display');
+    if (el) {
+      el.style.setProperty('--sub-size', subSizeMap[currentSubSize]);
+      el.style.setProperty('--sub-color', currentSubColor);
+      el.style.setProperty('--sub-bg', subBgMap[currentSubBg]);
+    }
+  }
+
+  // Restore active states on buttons
+  function syncSettingsUI() {
+    document.querySelectorAll('#sub-size-row .settings-pill').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent.trim() === { small: 'S', medium: 'M', large: 'L', xlarge: 'XL' }[currentSubSize]);
+    });
+    document.querySelectorAll('#sub-color-row .settings-color-swatch').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.color === currentSubColor);
+    });
+    document.querySelectorAll('#sub-bg-row .settings-bg-swatch').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.bg === currentSubBg);
+    });
+  }
+  syncSettingsUI();
+
+  window.setSubSize = function(size) {
+    currentSubSize = size;
+    localStorage.setItem('eclipse_sub_size', size);
+    applySubtitleStyle();
+    syncSettingsUI();
+  };
+
+  window.setSubColor = function(color) {
+    currentSubColor = color;
+    localStorage.setItem('eclipse_sub_color', color);
+    applySubtitleStyle();
+    syncSettingsUI();
+  };
+
+  window.setSubBg = function(bg) {
+    currentSubBg = bg;
+    localStorage.setItem('eclipse_sub_bg', bg);
+    applySubtitleStyle();
+    syncSettingsUI();
+  };
+
+  window.setSubtitle = function(trackIndex) {
+    if (!vjsPlayer) return;
+    const tracks = vjsPlayer.textTracks();
+    let captionIndex = 0;
+    for (let i = 0; i < tracks.length; i++) {
+      if (tracks[i].kind === 'captions' || tracks[i].kind === 'subtitles') {
+        tracks[i].mode = captionIndex === trackIndex ? 'showing' : 'disabled';
+        captionIndex++;
+      }
+    }
+    applySubtitleStyle();
+    document.getElementById('subs-popup').classList.add('hidden');
+  };
+
+  window.setPlaybackSpeed = function(rate) {
+    if(vjsPlayer) vjsPlayer.playbackRate(rate);
+    document.getElementById('settings-popup').classList.add('hidden');
+  };
+
+  window.openServerPickerFromSettings = function() {
+    document.getElementById('settings-popup').classList.add('hidden');
+    if (currentStreamData) {
+      window.openSourcePicker(currentStreamData.type, currentStreamData.tmdbId, currentStreamData.season, currentStreamData.episode);
+    }
+  };
+
+  // Apply subtitle style whenever tracks change
+  window._applySubtitleStyle = applySubtitleStyle;
+
+  const Button = videojs.getComponent('Button');
+
+  // Cloud Icon: Server Switcher
+  class ServerSwitchButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Switch Server');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4C9.11 4 6.6 5.64 5.35 8.04C2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5c0-2.64-2.05-4.78-4.65-4.96z"/></svg></span>';
+    }
+    buildCSSClass() {
+      return `vjs-server-switch-btn ${super.buildCSSClass()}`;
+    }
+    handleClick() {
+      if (currentStreamData) {
+        window.openSourcePicker(currentStreamData.type, currentStreamData.tmdbId, currentStreamData.season, currentStreamData.episode);
+      }
+    }
+  }
+  videojs.registerComponent('ServerSwitchButton', ServerSwitchButton);
+
+  // TV: Next Episode
+  class NextEpisodeButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Next Episode');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg></span>';
+    }
+    buildCSSClass() {
+      return `vjs-next-episode-btn ${super.buildCSSClass()}`;
+    }
+    handleClick() {
+      playNextEpisode();
+    }
+  }
+  videojs.registerComponent('NextEpisodeButton', NextEpisodeButton);
+
+  // TV: Episodes List
+  class EpisodesListButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Episodes');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/></svg></span>';
+    }
+    buildCSSClass() {
+      return `vjs-episodes-list-btn ${super.buildCSSClass()}`;
+    }
+    handleClick() {
+      const btnRect = this.el().getBoundingClientRect();
+      episodesPopup.style.right = 'auto';
+      let leftPos = btnRect.left + (btnRect.width / 2) - 150; // 300px width / 2
+      if (leftPos < 10) leftPos = 10;
+      if (leftPos + 300 > window.innerWidth - 10) leftPos = window.innerWidth - 310;
+      episodesPopup.style.left = leftPos + 'px';
+      
+      episodesPopup.classList.toggle('hidden');
+      if (!episodesPopup.classList.contains('hidden')) {
+        populateEpisodesPopup();
+      }
+    }
+  }
+  videojs.registerComponent('EpisodesListButton', EpisodesListButton);
+
+  // Skip Backward 10s
+  class SkipBackwardButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Rewind 10s');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12.5 3C17.15 3 21 6.85 21 11.5C21 16.15 17.15 20 12.5 20C8.61 20 5.34 17.37 4.29 13.84L6.16 13.23C6.96 15.89 9.5 18 12.5 18C16.09 18 19 15.09 19 11.5C19 7.91 16.09 5 12.5 5C9.44 5 6.85 7.11 6.07 10H8.5L4.25 14.25L0 10H2.16C3.06 5.96 6.43 3 10.5 3H12.5Z"/></svg></span>';
+    }
+    handleClick() {
+      const p = this.player();
+      p.currentTime(Math.max(0, p.currentTime() - 10));
+    }
+  }
+  videojs.registerComponent('SkipBackwardButton', SkipBackwardButton);
+
+  // Skip Forward 10s
+  class SkipForwardButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Forward 10s');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M11.5 3C6.85 3 3 6.85 3 11.5C3 16.15 6.85 20 11.5 20C15.39 20 18.66 17.37 19.71 13.84L17.84 13.23C17.04 15.89 14.5 18 11.5 18C7.91 18 5 15.09 5 11.5C5 7.91 7.91 5 11.5 5C14.56 5 17.15 7.11 17.93 10H15.5L19.75 14.25L24 10H21.84C20.94 5.96 17.57 3 13.5 3H11.5Z"/></svg></span>';
+    }
+    handleClick() {
+      const p = this.player();
+      if (p.duration()) {
+        p.currentTime(Math.min(p.duration(), p.currentTime() + 10));
+      }
+    }
+  }
+  videojs.registerComponent('SkipForwardButton', SkipForwardButton);
+
+  // Settings Menu (Gear Icon)
+  class SettingsButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Settings');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg></span>';
+    }
+    buildCSSClass() {
+      return `vjs-settings-btn ${super.buildCSSClass()}`;
+    }
+    handleClick() {
+      const popup = document.getElementById('settings-popup');
+      if (popup) {
+        const btnRect = this.el().getBoundingClientRect();
+        popup.style.right = 'auto';
+        let leftPos = btnRect.left + (btnRect.width / 2) - 110; // 220px width / 2
+        if (leftPos < 10) leftPos = 10;
+        if (leftPos + 220 > window.innerWidth - 10) leftPos = window.innerWidth - 230;
+        popup.style.left = leftPos + 'px';
+        popup.classList.toggle('hidden');
+      }
+    }
+  }
+  videojs.registerComponent('SettingsButton', SettingsButton);
+  // Custom Subtitles Menu (CC Icon)
+  class CustomSubsButton extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.controlText('Subtitles');
+      this.el().innerHTML = '<span class="vjs-icon-placeholder" style="display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M19 4H5C3.89 4 3.01 4.89 3.01 6L3 20L7 16H19C20.1 16 21 15.1 21 14V6C21 4.89 20.1 4 19 4ZM7 9H9V11H7V9ZM11 9H13V11H11V9ZM15 9H17V11H15V9Z"/></svg></span>';
+    }
+    buildCSSClass() {
+      return `vjs-custom-subs-btn ${super.buildCSSClass()}`;
+    }
+    handleClick() {
+      const popup = document.getElementById('subs-popup');
+      if (popup) {
+        const btnRect = this.el().getBoundingClientRect();
+        popup.style.right = 'auto';
+        let leftPos = btnRect.left + (btnRect.width / 2) - 110;
+        if (leftPos < 10) leftPos = 10;
+        if (leftPos + 220 > window.innerWidth - 10) leftPos = window.innerWidth - 230;
+        popup.style.left = leftPos + 'px';
+        popup.classList.toggle('hidden');
+      }
+    }
+  }
+  videojs.registerComponent('CustomSubsButton', CustomSubsButton);
+
+}
+
+// ============================================================
+// 3. INITIALIZATION
+// ============================================================
+function initPlayerIfNeeded() {
+  if (vjsPlayer) return vjsPlayer;
+  
+  registerVideoJsPlugins();
+
+  vjsPlayer = videojs('eclipse-videojs', {
+    controls: true,
+    autoplay: true,
+    preload: 'auto',
+    playbackRates: [0.5, 1, 1.25, 1.5, 2],
+    controlBar: {
+      children: [
+        'playToggle',
+        'SkipBackwardButton',
+        'SkipForwardButton',
+        'currentTimeDisplay',
+        'progressControl',
+        'durationDisplay',
+        'customControlSpacer',
+        'SettingsButton',
+        'CustomSubsButton',
+        'ServerSwitchButton',
+        'EpisodesListButton',
+        'NextEpisodeButton',
+        'volumePanel',
+        'pictureInPictureToggle',
+        'fullscreenToggle'
+      ]
+    }
+  });
+
+  // Setup Plugins
+  vjsPlayer.hlsQualitySelector({
+      displayCurrentQuality: true,
+  });
+
+  vjsPlayer.on('error', function() {
+    const err = vjsPlayer.error();
+    if (err) {
+      console.error('Video.js Error:', err);
+      playerError.style.display = 'flex';
+      playerError.classList.add('active');
+    }
+  });
+
+  vjsPlayer.on('playing', function() {
+    playerError.style.display = 'none';
+    playerError.classList.remove('active');
+  });
+
+  // Move custom popups into the video.js container so they are visible in fullscreen
+  const playerEl = vjsPlayer.el();
+  const settingsPopup = document.getElementById('settings-popup');
+  const subsPopup = document.getElementById('subs-popup');
+  const episodesPopupEl = document.getElementById('episodes-popup');
+
+  if (settingsPopup && settingsPopup.parentElement !== playerEl) playerEl.appendChild(settingsPopup);
+  if (subsPopup && subsPopup.parentElement !== playerEl) playerEl.appendChild(subsPopup);
+  if (episodesPopupEl && episodesPopupEl.parentElement !== playerEl) playerEl.appendChild(episodesPopupEl);
+
+  return vjsPlayer;
+}
+
+// ============================================================
+// 4. OPEN PLAYER
+// ============================================================
+window.openPlayer = function(streamData, title) {
   currentStreamData = streamData;
   playerOverlay.classList.add('active');
   document.body.style.overflow = 'hidden';
 
   // Set title
   playerMediaTitle.textContent = title || '';
-
-  // Reset state
+  
+  // Hide UI overlays
+  playerError.style.display = 'none';
   playerError.classList.remove('active');
-  playerLoading.style.display = 'flex';
-  playerLoadingText.textContent = 'Connecting to server...';
-  playerPlayBtn.textContent = '▶';
-  playerProgressFilled.style.width = '0%';
-  playerProgressBuffer.style.width = '0%';
-  playerTime.textContent = '0:00 / 0:00';
-  qualityMenu.classList.remove('active');
-  subsMenu.classList.remove('active');
+  episodesPopup.classList.add('hidden');
+  const settingsPopup = document.getElementById('settings-popup');
+  if (settingsPopup) settingsPopup.classList.add('hidden');
 
-  // Handle IFRAME fallback mode
+  const player = initPlayerIfNeeded();
+
+  // Show/Hide TV Specific Buttons
+  const isTv = streamData.type === 'tv';
+  
+  // Use querySelector to find the buttons in the DOM and toggle their display
+  const nextBtn = player.el().querySelector('.vjs-next-episode-btn');
+  const epListBtn = player.el().querySelector('.vjs-episodes-list-btn');
+  
+  if (nextBtn) nextBtn.style.display = isTv ? 'flex' : 'none';
+  if (epListBtn) epListBtn.style.display = isTv ? 'flex' : 'none';
+
+  // Reset Subtitles
+  const oldTracks = player.remoteTextTracks();
+  let i = oldTracks.length;
+  while (i--) {
+    player.removeRemoteTextTrack(oldTracks[i]);
+  }
+
+  // Handle IFRAME Fallback Mode
   if (streamData.isIframe) {
     console.log('Opening iframe player:', streamData.url);
-    
-    // Hide our custom controls
-    playerVideo.style.display = 'none';
-    playerControls.style.display = 'none';
-    playerTopBar.classList.remove('hidden'); // Keep top bar for the Close button
+    player.el().style.display = 'none';
     
     // Remove existing iframe if any
-    const oldIframe = document.getElementById('player-iframe-fallback');
+    let oldIframe = document.getElementById('player-iframe-fallback');
     if (oldIframe) oldIframe.remove();
 
     // Create iframe
@@ -93,620 +431,202 @@ function openPlayer(streamData, title) {
     iframe.style.zIndex = '5';
     iframe.allowFullscreen = true;
     
-    iframe.onload = () => {
-      playerLoading.style.display = 'none';
-    };
-
     document.getElementById('player-video-wrap').appendChild(iframe);
     return;
   }
 
-  // STANDARD HLS MODE
-  playerVideo.style.display = 'block';
-  playerControls.style.display = 'flex';
-  const oldIframe = document.getElementById('player-iframe-fallback');
+  // STANDARD VIDEO.JS MODE
+  player.el().style.display = 'block';
+  let oldIframe = document.getElementById('player-iframe-fallback');
   if (oldIframe) oldIframe.remove();
 
-  const streamUrl = streamData.url;
-  const referer = streamData.referer || '';
-
-  if (!streamUrl) {
-    showPlayerError('No Stream', 'The server did not return a valid stream URL.');
+  if (!streamData.url) {
+    playerError.classList.add('active');
+    document.getElementById('player-error-text').textContent = 'No Stream';
+    document.getElementById('player-error-sub').textContent = 'The server did not return a valid stream URL.';
     return;
   }
 
-  console.log('Opening player with stream:', streamUrl);
+  // Load Source
+  player.src({
+    src: streamData.url,
+    type: streamData.type === 'mp4' ? 'video/mp4' : 'application/x-mpegURL'
+  });
 
-  if (playerHls) {
-    playerHls.destroy();
-    playerHls = null;
-  }
-
-  // Remove any old text tracks
-  while (playerVideo.firstChild) {
-    playerVideo.removeChild(playerVideo.firstChild);
-  }
-
-  if (streamData.type === 'mp4') {
-    // Native MP4 playback
-    playerVideo.src = streamUrl;
-    playerLoading.style.display = 'none';
-    playerVideo.play().catch(() => {});
-    showControls();
+  // Add Subtitles AFTER source is set (critical: adding before src wipes them)
+  let subtitlesHtml = `<div class="episodes-popup-item" onclick="window.setSubtitle(-1)">Off</div>`;
+  
+  player.ready(function() {
+    if (streamData.subtitles && streamData.subtitles.length > 0) {
+      streamData.subtitles.forEach((sub, i) => {
+        const trackEl = player.addRemoteTextTrack({
+          kind: 'subtitles',
+          src: sub.url,
+          srclang: sub.lang_code || sub.lang || 'en',
+          label: sub.label || sub.lang || `Track ${i + 1}`,
+          default: false
+        }, false);
+        
+        const label = sub.label || sub.lang || `Track ${i + 1}`;
+        subtitlesHtml += `<div class="episodes-popup-item" onclick="window.setSubtitle(${i})">${label}</div>`;
+      });
+    }
     
-    // Default quality menu for MP4
-    subsMenuItems.innerHTML = '<div class="player-menu-item active" data-track="-1">Off <span class="check">✓</span></div>';
-    qualityMenuItems.innerHTML = `<div class="player-menu-item active">Auto <span class="check">✓</span></div>`;
+    const subsContainer = document.getElementById('subs-popup-container');
+    if (subsContainer) {
+      subsContainer.innerHTML = subtitlesHtml;
+    }
     
-  } else if (Hls.isSupported()) {
-    playerHls = new Hls({
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
-      startLevel: -1, // auto
-      capLevelToPlayerSize: true,
-      enableWorker: true,
-      lowLatencyMode: false,
-      // Robustness for slow proxies:
-      manifestLoadingTimeOut: 20000,
-      manifestLoadingMaxRetry: 5,
-      levelLoadingTimeOut: 20000,
-      levelLoadingMaxRetry: 5,
-      fragLoadingTimeOut: 30000,
-      fragLoadingMaxRetry: 5,
-    });
+    // Apply saved subtitle style preferences
+    if (window._applySubtitleStyle) window._applySubtitleStyle();
+  });
 
-    playerHls.loadSource(streamUrl);
-    playerHls.attachMedia(playerVideo);
-
-    playerHls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-      playerLoading.style.display = 'none';
-      playerVideo.play().catch(() => {});
-      buildQualityMenu(data.levels);
-      showControls();
-    });
-
-    playerHls.on(Hls.Events.ERROR, (event, data) => {
-      console.error('HLS Error:', data);
-      if (data.fatal) {
-        switch (data.type) {
-          case Hls.ErrorTypes.NETWORK_ERROR:
-            if (data.details === 'manifestParsingError') {
-              showPlayerError('Broken Source', 'This provider returned an invalid stream. Please click the Settings gear to try another source.');
-            } else {
-              console.log('Network error, retrying...');
-              playerHls.startLoad();
-            }
-            break;
-          case Hls.ErrorTypes.MEDIA_ERROR:
-            console.log('Media error, recovering...');
-            playerHls.recoverMediaError();
-            break;
-          default:
-            showPlayerError('Stream Error', 'This server returned an invalid stream. Try another server.');
-            break;
-        }
-      }
-    });
-
-    playerHls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
-      updateQualityIndicator(data.level);
-    });
-
-  } else if (playerVideo.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari native HLS
-    playerVideo.src = streamUrl;
-    playerVideo.addEventListener('loadedmetadata', () => {
-      playerLoading.style.display = 'none';
-      playerVideo.play().catch(() => {});
-      showControls();
-    }, { once: true });
-  } else {
-    showPlayerError('Unsupported Browser', 'Your browser does not support HLS playback.');
-  }
-
-  // Load subtitles if available
-  if (streamData.subtitles && streamData.subtitles.length > 0) {
-    loadSubtitles(streamData.subtitles);
-  } else {
-    subsMenuItems.innerHTML = '<div class="player-menu-item active" data-track="-1">Off <span class="check">✓</span></div>';
-  }
-}
+  player.play().catch(e => console.log('Autoplay prevented:', e));
+};
 
 // ============================================================
-// 4. CLOSE PLAYER
+// 5. CLOSE PLAYER
 // ============================================================
-function closePlayer() {
+window.closePlayer = function() {
   playerOverlay.classList.remove('active');
   document.body.style.overflow = '';
+  episodesPopup.classList.add('hidden');
 
-  if (playerHls) {
-    playerHls.destroy();
-    playerHls = null;
+  if (vjsPlayer) {
+    vjsPlayer.pause();
+    vjsPlayer.src(''); // Clear source
   }
-
-  playerVideo.pause();
-  playerVideo.removeAttribute('src');
-  playerVideo.load();
 
   // Exit fullscreen
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
   }
-
-  clearTimeout(controlsTimeout);
+  
   currentStreamData = null;
-}
+};
 
-playerBackBtn.addEventListener('click', closePlayer);
+playerBackBtn.addEventListener('click', window.closePlayer);
+
 playerErrorRetry.addEventListener('click', () => {
-  closePlayer();
-  // Open the source picker directly so they can choose a different one
-  document.getElementById('server-modal-overlay').classList.add('active');
+  if (currentStreamData) {
+    window.openSourcePicker(currentStreamData.type, currentStreamData.tmdbId, currentStreamData.season, currentStreamData.episode);
+  }
+});
+
+// Hide episode popup when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.episodes-popup') && !e.target.closest('.vjs-episodes-list-btn') && !e.target.closest('.vjs-settings-btn') && !e.target.closest('.vjs-custom-subs-btn')) {
+    episodesPopup.classList.add('hidden');
+    const settingsPopup = document.getElementById('settings-popup');
+    if (settingsPopup) settingsPopup.classList.add('hidden');
+    const subsPopup = document.getElementById('subs-popup');
+    if (subsPopup) subsPopup.classList.add('hidden');
+  }
 });
 
 // ============================================================
-// 5. PLAY / PAUSE
+// 6. TV SERIES LOGIC
 // ============================================================
-function togglePlay() {
-  if (playerVideo.paused) {
-    playerVideo.play().catch(() => {});
-  } else {
-    playerVideo.pause();
-  }
-}
-
-playerPlayBtn.addEventListener('click', togglePlay);
-
-playerVideo.addEventListener('click', e => {
-  // On mobile, first click shows controls, second toggles play
-  if (window.innerWidth < 768) {
-    if (playerControls.classList.contains('hidden')) {
-      showControls();
+async function populateEpisodesPopup() {
+  if (!currentStreamData || currentStreamData.type !== 'tv') return;
+  
+  episodesPopupList.innerHTML = '<div style="padding: 10px; color: #fff;">Loading...</div>';
+  
+  try {
+    const seasonData = await getSeasonDetails(currentStreamData.tmdbId, currentStreamData.season);
+    if (!seasonData.episodes || seasonData.episodes.length === 0) {
+      episodesPopupList.innerHTML = '<div style="padding: 10px; color: #fff;">No episodes found.</div>';
       return;
     }
-  }
-  togglePlay();
-});
 
-playerVideo.addEventListener('play', () => {
-  playerPlayBtn.textContent = '⏸';
-  playerLoading.style.display = 'none';
-});
-
-playerVideo.addEventListener('pause', () => {
-  playerPlayBtn.textContent = '▶';
-  showControls();
-});
-
-playerVideo.addEventListener('waiting', () => {
-  playerLoading.style.display = 'flex';
-  playerLoadingText.textContent = 'Buffering...';
-});
-
-playerVideo.addEventListener('playing', () => {
-  playerLoading.style.display = 'none';
-});
-
-// ============================================================
-// 6. PROGRESS BAR
-// ============================================================
-playerVideo.addEventListener('timeupdate', () => {
-  if (isSeeking || !playerVideo.duration) return;
-
-  const pct = (playerVideo.currentTime / playerVideo.duration) * 100;
-  playerProgressFilled.style.width = `${pct}%`;
-  playerProgressThumb.style.left = `${pct}%`;
-  playerTime.textContent = `${formatTime(playerVideo.currentTime)} / ${formatTime(playerVideo.duration)}`;
-});
-
-playerVideo.addEventListener('progress', () => {
-  if (!playerVideo.duration || !playerVideo.buffered.length) return;
-  const bufferedEnd = playerVideo.buffered.end(playerVideo.buffered.length - 1);
-  const bufferPct = (bufferedEnd / playerVideo.duration) * 100;
-  playerProgressBuffer.style.width = `${bufferPct}%`;
-});
-
-// Seek
-playerProgressWrap.addEventListener('mousedown', startSeek);
-playerProgressWrap.addEventListener('touchstart', startSeek, { passive: true });
-
-function startSeek(e) {
-  isSeeking = true;
-  seek(e);
-  document.addEventListener('mousemove', seek);
-  document.addEventListener('touchmove', seek, { passive: true });
-  document.addEventListener('mouseup', endSeek);
-  document.addEventListener('touchend', endSeek);
-}
-
-function seek(e) {
-  const rect = playerProgressWrap.getBoundingClientRect();
-  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-  let pct = (clientX - rect.left) / rect.width;
-  pct = Math.max(0, Math.min(1, pct));
-  playerProgressFilled.style.width = `${pct * 100}%`;
-  playerProgressThumb.style.left = `${pct * 100}%`;
-
-  if (playerVideo.duration) {
-    playerTime.textContent = `${formatTime(pct * playerVideo.duration)} / ${formatTime(playerVideo.duration)}`;
-  }
-}
-
-function endSeek(e) {
-  const rect = playerProgressWrap.getBoundingClientRect();
-  const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-  let pct = (clientX - rect.left) / rect.width;
-  pct = Math.max(0, Math.min(1, pct));
-
-  if (playerVideo.duration) {
-    playerVideo.currentTime = pct * playerVideo.duration;
-  }
-
-  isSeeking = false;
-  document.removeEventListener('mousemove', seek);
-  document.removeEventListener('touchmove', seek);
-  document.removeEventListener('mouseup', endSeek);
-  document.removeEventListener('touchend', endSeek);
-}
-
-// ============================================================
-// 7. VOLUME
-// ============================================================
-playerVolBtn.addEventListener('click', () => {
-  playerVideo.muted = !playerVideo.muted;
-  updateVolumeIcon();
-});
-
-playerVolSlider.addEventListener('input', () => {
-  playerVideo.volume = parseFloat(playerVolSlider.value);
-  playerVideo.muted = playerVideo.volume === 0;
-  updateVolumeIcon();
-});
-
-function updateVolumeIcon() {
-  if (playerVideo.muted || playerVideo.volume === 0) {
-    playerVolBtn.textContent = '🔇';
-    playerVolSlider.value = 0;
-  } else if (playerVideo.volume < 0.5) {
-    playerVolBtn.textContent = '🔉';
-    playerVolSlider.value = playerVideo.volume;
-  } else {
-    playerVolBtn.textContent = '🔊';
-    playerVolSlider.value = playerVideo.volume;
-  }
-}
-
-// ============================================================
-// 8. SKIP FORWARD / REWIND
-// ============================================================
-playerRwBtn.addEventListener('click', () => {
-  playerVideo.currentTime = Math.max(0, playerVideo.currentTime - 10);
-  showControls();
-});
-
-playerFfBtn.addEventListener('click', () => {
-  if (playerVideo.duration) {
-    playerVideo.currentTime = Math.min(playerVideo.duration, playerVideo.currentTime + 10);
-  }
-  showControls();
-});
-
-// ============================================================
-// 9. FULLSCREEN
-// ============================================================
-playerFsBtn.addEventListener('click', toggleFullscreen);
-
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    playerOverlay.requestFullscreen().catch(() => {
-      // iOS fallback
-      if (playerVideo.webkitEnterFullscreen) {
-        playerVideo.webkitEnterFullscreen();
+    episodesPopupList.innerHTML = seasonData.episodes.map(ep => `
+      <div class="episodes-popup-item ${ep.episode_number === currentStreamData.episode ? 'active' : ''}" 
+           onclick="playMedia('tv', ${currentStreamData.tmdbId}, ${currentStreamData.season}, ${ep.episode_number})">
+        <div class="ep-num">${ep.episode_number}</div>
+        <div class="ep-info">
+          <div class="ep-title">${ep.name || `Episode ${ep.episode_number}`}</div>
+        </div>
+      </div>
+    `).join('');
+    
+    // Scroll to active episode
+    setTimeout(() => {
+      const activeEl = episodesPopupList.querySelector('.active');
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    });
-  } else {
-    document.exitFullscreen().catch(() => {});
+    }, 100);
+
+  } catch (err) {
+    console.error('Failed to load season details for popup:', err);
+    episodesPopupList.innerHTML = '<div style="padding: 10px; color: #fff;">Failed to load.</div>';
   }
 }
 
-document.addEventListener('fullscreenchange', () => {
-  playerFsBtn.textContent = document.fullscreenElement ? '⛶' : '⛶';
-});
-
-// ============================================================
-// 10. PICTURE IN PICTURE
-// ============================================================
-playerPipBtn.addEventListener('click', async () => {
+async function playNextEpisode() {
+  if (!currentStreamData || currentStreamData.type !== 'tv') return;
+  
   try {
-    if (document.pictureInPictureElement) {
-      await document.exitPictureInPicture();
-    } else if (playerVideo.requestPictureInPicture) {
-      await playerVideo.requestPictureInPicture();
+    const seasonData = await getSeasonDetails(currentStreamData.tmdbId, currentStreamData.season);
+    const nextEp = currentStreamData.episode + 1;
+    
+    // Check if next episode exists in current season
+    const exists = seasonData.episodes.find(e => e.episode_number === nextEp);
+    if (exists) {
+      playMedia('tv', currentStreamData.tmdbId, currentStreamData.season, nextEp);
+    } else {
+      // Try next season episode 1
+      playMedia('tv', currentStreamData.tmdbId, currentStreamData.season + 1, 1);
     }
   } catch (err) {
-    console.error('PiP error:', err);
-  }
-});
-
-// ============================================================
-// 11. QUALITY MENU
-// ============================================================
-playerQualityBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  subsMenu.classList.remove('active');
-  qualityMenu.classList.toggle('active');
-});
-
-function buildQualityMenu(levels) {
-  if (!levels || levels.length === 0) {
-    qualityMenuItems.innerHTML = '<div class="player-menu-item active" data-level="-1">Auto <span class="check">✓</span></div>';
-    return;
-  }
-
-  let html = '<div class="player-menu-item active" data-level="-1" onclick="setQuality(-1)">Auto <span class="check">✓</span></div>';
-
-  // Sort by height descending
-  const sorted = levels.map((l, i) => ({ ...l, index: i })).sort((a, b) => b.height - a.height);
-  const seen = new Set();
-
-  sorted.forEach(level => {
-    const label = `${level.height}p`;
-    if (seen.has(level.height)) return;
-    seen.add(level.height);
-    html += `<div class="player-menu-item" data-level="${level.index}" onclick="setQuality(${level.index})">${label} <span class="check">✓</span></div>`;
-  });
-
-  qualityMenuItems.innerHTML = html;
-}
-
-window.setQuality = function (level) {
-  if (!playerHls) return;
-  currentQualityLevel = level;
-  playerHls.currentLevel = level;
-  qualityMenuItems.querySelectorAll('.player-menu-item').forEach(item => {
-    item.classList.toggle('active', parseInt(item.dataset.level) === level);
-  });
-  qualityMenu.classList.remove('active');
-};
-
-function updateQualityIndicator(levelIndex) {
-  if (!playerHls || !playerHls.levels || !playerHls.levels[levelIndex]) return;
-  const height = playerHls.levels[levelIndex].height;
-  playerQualityBtn.textContent = height >= 1080 ? 'HD' : height >= 720 ? 'HD' : 'SD';
-}
-
-// ============================================================
-// 12. SUBTITLES
-// ============================================================
-playerSubsBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  qualityMenu.classList.remove('active');
-  subsMenu.classList.toggle('active');
-});
-
-function loadSubtitles(subtitles) {
-  let html = '<div class="player-menu-item active" data-track="-1" onclick="setSubtitle(-1)">Off <span class="check">✓</span></div>';
-
-  subtitles.forEach((sub, i) => {
-    html += `<div class="player-menu-item" data-track="${i}" onclick="setSubtitle(${i})">${sub.lang || sub.label || `Track ${i + 1}`} <span class="check">✓</span></div>`;
-
-    // Add track to video element
-    const track = document.createElement('track');
-    track.kind = 'subtitles';
-    track.label = sub.lang || sub.label || `Track ${i + 1}`;
-    track.src = sub.url;
-    track.srclang = sub.lang_code || 'en';
-    playerVideo.appendChild(track);
-  });
-
-  subsMenuItems.innerHTML = html;
-}
-
-window.setSubtitle = function (index) {
-  currentSubTrack = index;
-  const tracks = playerVideo.textTracks;
-
-  for (let i = 0; i < tracks.length; i++) {
-    tracks[i].mode = i === index ? 'showing' : 'hidden';
-  }
-
-  subsMenuItems.querySelectorAll('.player-menu-item').forEach(item => {
-    item.classList.toggle('active', parseInt(item.dataset.track) === index);
-  });
-
-  subsMenu.classList.remove('active');
-};
-
-// ============================================================
-// 13. CONTROLS VISIBILITY
-// ============================================================
-function showControls() {
-  playerControls.classList.remove('hidden');
-  playerTopBar.classList.remove('hidden');
-  clearTimeout(controlsTimeout);
-
-  if (!playerVideo.paused) {
-    controlsTimeout = setTimeout(hideControls, 3000);
+    console.error('Failed to skip to next episode:', err);
+    alert('Could not load next episode.');
   }
 }
 
-function hideControls() {
-  if (playerVideo.paused) return;
-  if (qualityMenu.classList.contains('active') || subsMenu.classList.contains('active')) return;
-  playerControls.classList.add('hidden');
-  playerTopBar.classList.add('hidden');
-}
-
-// Mouse/touch movement shows controls
-document.getElementById('player-video-wrap').addEventListener('mousemove', showControls);
-document.getElementById('player-video-wrap').addEventListener('touchstart', () => {
-  if (playerControls.classList.contains('hidden')) {
-    showControls();
-  }
-}, { passive: true });
-
-playerControls.addEventListener('mouseenter', () => clearTimeout(controlsTimeout));
-playerControls.addEventListener('mouseleave', () => {
-  if (!playerVideo.paused) controlsTimeout = setTimeout(hideControls, 3000);
-});
-
-// Close menus on click outside
-document.addEventListener('click', e => {
-  if (!e.target.closest('#quality-menu') && !e.target.closest('#player-quality-btn')) {
-    qualityMenu.classList.remove('active');
-  }
-  if (!e.target.closest('#subs-menu') && !e.target.closest('#player-subs-btn')) {
-    subsMenu.classList.remove('active');
-  }
-});
-
 // ============================================================
-// 14. KEYBOARD SHORTCUTS
+// 7. KEYBOARD SHORTCUTS
 // ============================================================
-document.addEventListener('keydown', e => {
-  if (!playerOverlay.classList.contains('active')) return;
-  if (e.target.tagName === 'INPUT') return;
+document.addEventListener('keydown', function(e) {
+  const overlay = document.getElementById('player-overlay');
+  if (!overlay || !overlay.classList.contains('active')) return;
+  
+  // Ignore if typing in an input (e.g., search bar if somehow focused)
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-  switch (e.key) {
-    case ' ':
-    case 'k':
+  const p = vjsPlayer;
+  if (!p) return;
+
+  switch(e.key.toLowerCase()) {
+    case ' ': // Space: Play/Pause
       e.preventDefault();
-      togglePlay();
+      if (p.paused()) p.play();
+      else p.pause();
       break;
-    case 'ArrowLeft':
+    case 'arrowleft': // Left Arrow: Skip backward 10s
       e.preventDefault();
-      playerVideo.currentTime = Math.max(0, playerVideo.currentTime - 10);
-      showControls();
+      p.currentTime(Math.max(0, p.currentTime() - 10));
       break;
-    case 'ArrowRight':
+    case 'arrowright': // Right Arrow: Skip forward 10s
       e.preventDefault();
-      if (playerVideo.duration) playerVideo.currentTime = Math.min(playerVideo.duration, playerVideo.currentTime + 10);
-      showControls();
+      p.currentTime(Math.min(p.duration() || 0, p.currentTime() + 10));
       break;
-    case 'ArrowUp':
+    case 'arrowup': // Up Arrow: Volume up
       e.preventDefault();
-      playerVideo.volume = Math.min(1, playerVideo.volume + 0.1);
-      playerVideo.muted = false;
-      updateVolumeIcon();
-      showControls();
+      p.volume(Math.min(1, p.volume() + 0.1));
       break;
-    case 'ArrowDown':
+    case 'arrowdown': // Down Arrow: Volume down
       e.preventDefault();
-      playerVideo.volume = Math.max(0, playerVideo.volume - 0.1);
-      updateVolumeIcon();
-      showControls();
+      p.volume(Math.max(0, p.volume() - 0.1));
       break;
-    case 'f':
-    case 'F':
+    case 'm': // M: Mute/Unmute
       e.preventDefault();
-      toggleFullscreen();
+      p.muted(!p.muted());
       break;
-    case 'm':
-    case 'M':
+    case 'f': // F: Toggle Fullscreen
       e.preventDefault();
-      playerVideo.muted = !playerVideo.muted;
-      updateVolumeIcon();
-      showControls();
-      break;
-    case 'Escape':
-      e.preventDefault();
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        closePlayer();
-      }
+      if (p.isFullscreen()) p.exitFullscreen();
+      else p.requestFullscreen();
       break;
   }
 });
-
-// ============================================================
-// 15. DOUBLE TAP TO SEEK (Mobile)
-// ============================================================
-let lastTapTime = 0;
-let lastTapX = 0;
-
-document.getElementById('player-video-wrap').addEventListener('touchend', e => {
-  const now = Date.now();
-  const tapX = e.changedTouches[0].clientX;
-
-  if (now - lastTapTime < 300) {
-    // Double tap
-    const wrapWidth = document.getElementById('player-video-wrap').offsetWidth;
-    if (tapX < wrapWidth / 3) {
-      // Left third — rewind
-      playerVideo.currentTime = Math.max(0, playerVideo.currentTime - 10);
-      showSkipIndicator('left', '-10s');
-    } else if (tapX > (wrapWidth * 2) / 3) {
-      // Right third — forward
-      if (playerVideo.duration) {
-        playerVideo.currentTime = Math.min(playerVideo.duration, playerVideo.currentTime + 10);
-      }
-      showSkipIndicator('right', '+10s');
-    } else {
-      // Center — toggle play
-      togglePlay();
-    }
-    e.preventDefault();
-  }
-
-  lastTapTime = now;
-  lastTapX = tapX;
-});
-
-function showSkipIndicator(side, text) {
-  const indicator = document.createElement('div');
-  indicator.style.cssText = `
-    position: absolute;
-    ${side}: 20%;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: white;
-    z-index: 20;
-    pointer-events: none;
-    animation: skipFade 0.6s ease-out forwards;
-  `;
-  indicator.textContent = text;
-
-  const style = document.createElement('style');
-  style.textContent = `@keyframes skipFade { 0% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; transform: translateY(-50%) scale(1.5); } }`;
-  indicator.appendChild(style);
-
-  document.getElementById('player-video-wrap').appendChild(indicator);
-  setTimeout(() => indicator.remove(), 600);
-}
-
-// ============================================================
-// 16. ERROR DISPLAY
-// ============================================================
-function showPlayerError(title, message) {
-  playerLoading.style.display = 'none';
-  document.getElementById('player-error-text').textContent = title;
-  document.getElementById('player-error-sub').textContent = message;
-  playerError.classList.add('active');
-}
-
-// ============================================================
-// 17. HELPERS
-// ============================================================
-function formatTime(seconds) {
-  if (!seconds || isNaN(seconds)) return '0:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
